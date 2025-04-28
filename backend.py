@@ -1,11 +1,60 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import pickle
-import os
-import pandas as pd
+import joblib
+
+# Very important: import your custom class before loading pickle!
+from model import AllergenModel
 
 app = Flask(__name__)
 CORS(app)
+
+# ===========================
+# Load Models
+# ===========================
+
+try:
+    print("🔄 Loading models...")
+    allergen_model = joblib.load('allergen_model.pkl')
+    print("✅ Allergen model loaded successfully!")
+except Exception as e:
+    print("❌ Error loading allergen model:", e)
+    allergen_model = None
+
+# (if you later fix recipe_model.pkl, same logic applies)
+
+# ===========================
+# Your Endpoints
+# ===========================
+
+@app.route("/")
+def home():
+    return "Nutrition API is Running 🚀"
+
+@app.route("/predict_allergen", methods=["POST"])
+def predict_allergen():
+    if allergen_model is None:
+        return jsonify({"error": "Allergen model not available"}), 500
+    
+    data = request.get_json()
+    text = data.get("text", "")
+    
+    if not text:
+        return jsonify({"error": "No input provided"}), 400
+
+    try:
+        result = allergen_model.predict(text)  # Assuming your model has predict method
+        return jsonify({"result": result})
+    except Exception as e:
+        print("Prediction error:", e)
+        return jsonify({"error": "Prediction failed"}), 500
+
+# ===========================
+# Run app
+# ===========================
+if __name__ == "__main__":
+    import os
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
 
 # ====================== MODEL CLASSES ======================
 class AllergenModel:
